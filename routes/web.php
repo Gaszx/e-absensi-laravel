@@ -33,3 +33,37 @@ Route::middleware(['auth', 'role:guru'])->group(function () {
     Route::get('/guru/rekap', [GuruController::class, 'rekap'])->name('guru.rekap');
     // Nanti rute absen ditaruh di sini
 });
+
+// --- ROUTE DARURAT UNTUK DEPLOY (HAPUS NANTI SETELAH SUKSES) ---
+Route::get('/setup-aplikasi-darurat', function () {
+    try {
+        // 1. Jalankan Migration (Bikin Tabel)
+        \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        $log = "1. Migration: SUKSES.\n";
+
+        // 2. Buat User Admin (Cek dulu biar gak dobel)
+        $cekAdmin = \App\Models\User::where('email', 'admin@sekolah.com')->first();
+        if (!$cekAdmin) {
+            \App\Models\User::create([
+                'name' => 'Admin Utama',
+                'email' => 'admin@sekolah.com',
+                'password' => bcrypt('password123'),
+                'role' => 'admin'
+            ]);
+            $log .= "2. Admin: BERHASIL DIBUAT (Login: admin@sekolah.com | Pass: password123).\n";
+        } else {
+            $log .= "2. Admin: SUDAH ADA (Tidak dibuat ulang).\n";
+        }
+
+        // 3. Bersihkan Cache (Penting di Render)
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        $log .= "3. Cache: BERSIH.\n";
+
+        return "<pre style='font-size:16px; font-family:monospace; color:green;'>" . $log . "\n--- SELESAI ---</pre>";
+
+    } catch (\Exception $e) {
+        return "<pre style='font-size:16px; font-family:monospace; color:red;'>ERROR GAWAT:\n" . $e->getMessage() . "</pre>";
+    }
+});
