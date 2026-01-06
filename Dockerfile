@@ -1,7 +1,7 @@
 # Gunakan PHP 8.2 dengan Apache
 FROM php:8.2-apache
 
-# Install dependency sistem yang sering dibutuhkan Laravel
+# 1. Install dependency sistem (termasuk zip/unzip yang tadi error)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     libzip-dev \
@@ -11,34 +11,30 @@ RUN apt-get update && apt-get install -y \
     curl \
     && docker-php-ext-install pdo pdo_pgsql bcmath zip
 
-# Aktifkan mod_rewrite Apache
+# 2. Aktifkan mod_rewrite Apache
 RUN a2enmod rewrite
 
-# Setting folder kerja
+# 3. Setting folder kerja
 WORKDIR /var/www/html
 
-# Copy file composer dulu (agar cache layer Docker bekerja optimal)
-COPY composer.json composer.lock ./
-
-# Install Composer
+# 4. Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install library Laravel (dengan bendera ignore-platform-reqs agar tidak rewel soal versi PHP minor)
-RUN composer install --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
-
-# Copy sisa file project
+# --- PERUBAHAN UTAMA DI SINI ---
+# Kita copy SEMUA file project dulu ke dalam Docker
 COPY . .
 
-# Generate key & optimize (jalankan lagi untuk memastikan script berjalan)
-RUN composer dump-autoload --optimize
+# 5. Baru kita jalankan install
+# Kita gabung proses install dan autoloader jadi satu perintah biar tidak error
+RUN composer install --no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs
 
-# Ubah permission storage (PENTING: Render butuh ini)
+# 6. Atur Permission (Agar Laravel bisa nulis file cache/log)
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Ubah Document Root ke /public
+# 7. Atur Apache agar baca folder public
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf
 
-# Buka port 80
+# 8. Buka port
 EXPOSE 80
