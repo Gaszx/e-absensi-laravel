@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Artisan;
+use App\Models\User;
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\GuruController;
@@ -65,5 +68,42 @@ Route::get('/setup-aplikasi-darurat', function () {
 
     } catch (\Exception $e) {
         return "<pre style='font-size:16px; font-family:monospace; color:red;'>ERROR GAWAT:\n" . $e->getMessage() . "</pre>";
+    }
+});
+
+Route::get('/setup-database-darurat', function () {
+    try {
+        // 1. Paksa Laravel melakukan Migrate (Bikin Tabel)
+        Artisan::call('migrate', ['--force' => true]);
+        echo '<h3 style="color:green">✔ Tabel Database Berhasil Dibuat!</h3>';
+
+        // 2. Buat User Admin Baru
+        // Cek dulu apakah admin sudah ada biar gak error duplicate
+        $cek = User::where('email', 'admin@sekolah.com')->first();
+        if(!$cek) {
+            User::create([
+                'name' => 'Admin Utama',
+                'email' => 'admin@sekolah.com',
+                'password' => bcrypt('password123'), // Passwordnya ini
+                'role' => 'admin'
+            ]);
+            echo '<h3 style="color:green">✔ User Admin Berhasil Dibuat!</h3>';
+            echo '<p>Email: admin@sekolah.com <br> Pass: password123</p>';
+        } else {
+            echo '<h3 style="color:orange">⚠ User Admin Sudah Ada (Tidak dibuat ulang)</h3>';
+        }
+
+        // 3. Bersihkan Cache (Penting di Render)
+        Artisan::call('config:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('view:clear');
+        echo '<h3 style="color:green">✔ Cache Aplikasi Dibersihkan!</h3>';
+
+        echo '<hr><a href="/login">KLIK DISINI UNTUK LOGIN</a>';
+
+    } catch (\Exception $e) {
+        // Kalau error, tampilkan errornya
+        echo '<h1 style="color:red">GAGAL!</h1>';
+        echo '<pre>' . $e->getMessage() . '</pre>';
     }
 });
