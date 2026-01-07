@@ -107,3 +107,18 @@ Route::get('/setup-database-darurat', function () {
         echo '<pre>' . $e->getMessage() . '</pre>';
     }
 });
+
+Route::get('/fix-jabatan-admin', function () {
+    // 1. Cari user Admin
+    $user = \App\Models\User::where('email', 'admin@sekolah.com')->first();
+    
+    if ($user) {
+        // 2. Paksa ubah role jadi 'admin'
+        $user->role = 'admin';
+        $user->save(); // Simpan perubahan
+        
+        return "<h1>SUKSES!</h1> <p>Nama: $user->name <br> Sekarang Jabatannya: <b>$user->role</b> (Sudah benar).</p> <a href='/dashboard'>Kembali ke Dashboard</a>";
+    } else {
+        return "User admin tidak ditemukan.";
+    }
+});
